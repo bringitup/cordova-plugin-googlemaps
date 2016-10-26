@@ -6,21 +6,23 @@
 //
 //
 
-#import "GoogleMaps.h"
+#import "CordovaGoogleMaps.h"
 #import "MyPlgunProtocol.h"
 #import "NSData+Base64.h"
 
-@interface Map : CDVPlugin<MyPlgunProtocol>
+@interface PluginMap : CDVPlugin<MyPlgunProtocol>
 @property (nonatomic, strong) GoogleMapsViewController* mapCtrl;
-@property (nonatomic) NSString *mapId;
 @property (nonatomic) BOOL isRemoved;
+@property (nonatomic) NSOperationQueue *loadPluginQueue;
+@property (nonatomic) NSOperationQueue *executeQueue;
 
 - (void)clear:(CDVInvokedUrlCommand*)command;
 - (void)setClickable:(CDVInvokedUrlCommand*)command;
 - (void)setVisible:(CDVInvokedUrlCommand*)command;
-- (void)setTilt:(CDVInvokedUrlCommand*)command;
-- (void)setCenter:(CDVInvokedUrlCommand*)command;
-- (void)setZoom:(CDVInvokedUrlCommand*)command;
+- (void)setCameraTilt:(CDVInvokedUrlCommand*)command;
+- (void)setCameraTarget:(CDVInvokedUrlCommand*)command;
+- (void)setCameraBearing:(CDVInvokedUrlCommand *)command;
+- (void)setCameraZoom:(CDVInvokedUrlCommand*)command;
 - (void)setDiv:(CDVInvokedUrlCommand *)command;
 - (void)setMapTypeId:(CDVInvokedUrlCommand*)command;
 - (void)animateCamera:(CDVInvokedUrlCommand*)command;
@@ -39,8 +41,5 @@
 - (void)setPadding:(CDVInvokedUrlCommand*)command;
 - (void)panBy:(CDVInvokedUrlCommand*)command;
 - (void)getFocusedBuilding:(CDVInvokedUrlCommand*)command;
-- (void)remove:(CDVInvokedUrlCommand *)command;
-- (void)pushHtmlElement:(CDVInvokedUrlCommand *)command;
-- (void)removeHtmlElement:(CDVInvokedUrlCommand *)command;
 
 @end

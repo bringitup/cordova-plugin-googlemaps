@@ -6,14 +6,17 @@
 //
 //
 
-#import "KmlOverlay.h"
+#import "PluginKmlOverlay.h"
 
 
-@implementation KmlOverlay
+@implementation PluginKmlOverlay
 
 -(void)setGoogleMapsViewController:(GoogleMapsViewController *)viewCtrl
 {
     self.mapCtrl = viewCtrl;
+}
+- (void)pluginUnload
+{
 }
 
 -(void)createKmlOverlay:(CDVInvokedUrlCommand *)command
@@ -715,7 +718,7 @@
                 tmp[attrName] = [TBXML attributeValue:attribute];
                 attribute = attribute->next;
             }
-            
+
             [children addObject: tmp];
             childNode = childNode->nextSibling;
         }

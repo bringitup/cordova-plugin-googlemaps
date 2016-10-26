@@ -1,14 +1,18 @@
 package plugin.google.maps;
 
+import android.content.res.AssetManager;
+import android.util.Log;
+
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+
 import org.apache.cordova.CallbackContext;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.google.android.gms.maps.model.TileOverlay;
-import com.google.android.gms.maps.model.TileOverlayOptions;
-
 public class PluginTileOverlay extends MyPlugin implements MyPluginInterface {
+
 
   /**
    * Create tile overlay
@@ -20,37 +24,62 @@ public class PluginTileOverlay extends MyPlugin implements MyPluginInterface {
   public void create(final JSONArray args,
     final CallbackContext callbackContext) throws JSONException {
 
-    JSONObject opts = args.getJSONObject(0);
-    int tileSize = opts.getInt("tileSize");
+
+    final JSONObject opts = args.getJSONObject(1);
+    final int tileSize = opts.getInt("tileSize");
     final String tileUrlFormat = opts.getString("tileUrlFormat");
-    
-    double opacity = 1.0;
-    if (opts.has("opacity")) {
-      opacity = opts.getDouble("opacity");
-    }
-    final PluginTileProvider tileProvider = new PluginTileProvider(tileUrlFormat, opacity, tileSize);
+
 
     final TileOverlayOptions options = new TileOverlayOptions();
-    options.tileProvider(tileProvider);
     if (opts.has("zIndex")) {
       options.zIndex((float)opts.getDouble("zIndex"));
     }
     if (opts.has("visible")) {
       options.visible(opts.getBoolean("visible"));
     }
+    if (opts.has("opacity")) {
+      options.transparency((float)(1 - opts.getDouble("opacity")));
+    }
+
     cordova.getActivity().runOnUiThread(new Runnable() {
       @Override
       public void run() {
-        TileOverlay tileOverlay = map.addTileOverlay(options);
-        String id = "tile_" + tileOverlay.getId();
 
-        self.objects.put(id, tileOverlay);
-        self.objects.put(id.replace("tile_", "tileProvider_"), tileProvider);
+        String userAgent = "Mozilla";
+        if (opts.has("userAgent")) {
+          try {
+            userAgent = opts.getString("userAgent");
+          } catch (JSONException e) {
+            //e.printStackTrace();
+          }
+        }
+        String currentPageUrl = webView.getUrl();
+
+        AssetManager assetManager = cordova.getActivity().getAssets();
+        final PluginTileProvider tileProvider = new PluginTileProvider(assetManager, currentPageUrl, userAgent, tileUrlFormat,tileSize);
+        tileProvider.setOnCacheClear(new PluginTileProvider.OnCacheClear() {
+          @Override
+          public void onCacheClear(int hashCode) {
+            TileOverlay tileOverlay = (TileOverlay)PluginTileOverlay.this.getTileOverlay(hashCode+"");
+            if (tileOverlay != null) {
+              tileOverlay.clearTileCache();
+              System.gc();
+            }
+          }
+        });
+        options.tileProvider(tileProvider);
+
+
+        TileOverlay tileOverlay = map.addTileOverlay(options);
+        String id = tileOverlay.getId();
+
+        self.objects.put("tileoverlay_" + id, tileOverlay);
+        self.objects.put("tileprovider_" + id, tileProvider);
 
         try {
           JSONObject result = new JSONObject();
           result.put("hashCode", tileOverlay.hashCode());
-          result.put("id", id);
+          result.put("id", "tileoverlay_" + id);
           callbackContext.success(result);
         } catch (JSONException e) {
           e.printStackTrace();
@@ -106,7 +135,7 @@ public class PluginTileOverlay extends MyPlugin implements MyPluginInterface {
 
         try {
           String id = args.getString(0);
-          id = id.replace("tile_", "tileProvider_");
+          id = id.replace("tileoverlay_", "tileprovider_");
           self.objects.put(id, null);
           self.objects.remove(id);
           sendNoResult(callbackContext);
@@ -115,24 +144,6 @@ public class PluginTileOverlay extends MyPlugin implements MyPluginInterface {
           callbackContext.error("" + e.getMessage());
           
         }
-      }
-    });
-  }
-  /**
-   * Clear cache
-   * @param args
-   * @param callbackContext
-   * @throws JSONException 
-   */
-  public void clearTileCache(JSONArray args, final CallbackContext callbackContext) throws JSONException {
-    final String id = args.getString(0);
-    
-    cordova.getActivity().runOnUiThread(new Runnable() {
-      @Override
-      public void run() {
-        TileOverlay tileOverlay = (TileOverlay)self.objects.get(id);
-        tileOverlay.clearTileCache();
-        sendNoResult(callbackContext);
       }
     });
   }
@@ -155,11 +166,9 @@ public class PluginTileOverlay extends MyPlugin implements MyPluginInterface {
    * @throws JSONException 
    */
   public void setOpacity(JSONArray args, CallbackContext callbackContext) throws JSONException {
-    double opacity = args.getDouble(1);
+    double opacity = 1 - args.getDouble(1);
     String id = args.getString(0);
-    id = id.replace("tile_", "tileProvider_");
-    
-    PluginTileProvider tileProvider = (PluginTileProvider)self.objects.get(id);
-    tileProvider.setOpacity(opacity);
+    this.setFloat("setTransparency", id, (float)opacity, callbackContext);
   }
+
 }

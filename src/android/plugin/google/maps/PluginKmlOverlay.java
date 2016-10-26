@@ -1,5 +1,8 @@
 package plugin.google.maps;
 
+import android.os.AsyncTask;
+import android.os.Bundle;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaWebView;
@@ -7,18 +10,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.annotation.SuppressLint;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.util.Log;
-
 public class PluginKmlOverlay extends MyPlugin implements MyPluginInterface {
-  
-  //@SuppressLint("UseSparseArrays")
-  //@Override
-  //public void initialize(CordovaInterface cordova, final CordovaWebView webView) {
-  //  super.initialize(cordova, webView);
-  //}
+
+  @Override
+  public void initialize(CordovaInterface cordova, final CordovaWebView webView) {
+    super.initialize(cordova, webView);
+  }
 
   /**
    * Create kml overlay
@@ -29,51 +26,48 @@ public class PluginKmlOverlay extends MyPlugin implements MyPluginInterface {
    */
   public void create(final JSONArray args, final CallbackContext callbackContext) throws JSONException {
 
-    final JSONObject opts = args.getJSONObject(0);
+    final JSONObject opts = args.getJSONObject(1);
     self = this;
 
-    AsyncTask<Void, Void, Bundle> task = new AsyncTask<Void, Void, Bundle>() {
-      @Override
-      protected Bundle doInBackground(Void... voids) {
-        return PluginUtil.Json2Bundle(opts);
-      }
+    if (!opts.has("url")) {
+      callbackContext.error("No kml file is specified");
+      return;
+    }
+    final Bundle params = PluginUtil.Json2Bundle(opts);
+    final String kmlId = opts.getString("kmlId");
 
-      protected void onPostExecute(Bundle params)  {
-        String urlStr = null;
-        try {
-          urlStr = opts.getString("url");
-        } catch (JSONException e) {
-          e.printStackTrace();
-          callbackContext.error(e.getMessage() + "");
-          return;
-        }
-        if (!urlStr.contains("://") &&
-            !urlStr.startsWith("/")  &&
-            !urlStr.startsWith("www/")) {
-          urlStr = "./" + urlStr;
-        }
-        if (urlStr.startsWith("./")) {
-          String currentPage = webView.getUrl();
-          currentPage = currentPage.replaceAll("[^\\/]*$", "");
-          urlStr = urlStr.replace("./", currentPage);
-        }
-        if (urlStr.startsWith("cdvfile://")) {
-          urlStr = PluginUtil.getAbsolutePathFromCDVFilePath(webView.getResourceApi(), urlStr);
-        }
+    String urlStr = null;
 
-        String kmlId = null;
-        try {
-          kmlId = opts.getString("kmlId");
-        } catch (JSONException e) {
-          e.printStackTrace();
-          callbackContext.error(e.getMessage() + "");
-        }
-        AsyncKmlParser kmlParser = new AsyncKmlParser(cordova.getActivity(), mapCtrl, kmlId, callbackContext, params);
-        kmlParser.execute(urlStr);
-      }
-    };
-    task.execute();
+    try {
+      urlStr = opts.getString("url");
+    } catch (JSONException e) {
+      e.printStackTrace();
+    }
+    if (urlStr == null || urlStr.length() == 0) {
+      callbackContext.error("No kml file is specified");
+      return;
+    }
 
+    if (!urlStr.contains("://") &&
+        !urlStr.startsWith("/") &&
+        !urlStr.startsWith("www/") &&
+        !urlStr.startsWith("data:image") &&
+        !urlStr.startsWith("./") &&
+        !urlStr.startsWith("../")) {
+      urlStr = "./" + urlStr;
+    }
+    if (urlStr.startsWith("./")  || urlStr.startsWith("../")) {
+      urlStr = urlStr.replace("././", "./");
+      String currentPage = CURRENT_PAGE_URL;
+      currentPage = currentPage.replaceAll("[^\\/]*$", "");
+      urlStr = currentPage + "/" + urlStr;
+    }
+    if (urlStr.startsWith("cdvfile://")) {
+      urlStr = PluginUtil.getAbsolutePathFromCDVFilePath(webView.getResourceApi(), urlStr);
+    }
+
+    AsyncKmlParser kmlParser = new AsyncKmlParser(cordova.getActivity(), pluginMap, kmlId, params, callbackContext);
+    kmlParser.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, urlStr);
 
   }
 

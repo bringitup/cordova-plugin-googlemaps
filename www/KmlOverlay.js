@@ -4,8 +4,6 @@ var argscheck = require('cordova/argscheck'),
     common = require('./Common'),
     BaseClass = require('./BaseClass');
 
-var PLUGIN_NAME = "KmlOverlay";
-
 /*****************************************************************************
  * KmlOverlay Class
  *****************************************************************************/
@@ -16,8 +14,6 @@ var KmlOverlay = function(map, kmlOverlayId, kmlOverlayOptions) {
     self._overlays = [];
     //self.set("visible", kmlOverlayOptions.visible === undefined ? true : kmlOverlayOptions.visible);
     //self.set("zIndex", kmlOverlayOptions.zIndex || 0);
-    kmlOverlayOptions.animation = kmlOverlayOptions.animation === undefined ? true : kmlOverlayOptions.animation;
-    kmlOverlayOptions.preserveViewport = kmlOverlayOptions.preserveViewport  === true;
     Object.defineProperty(self, "id", {
         value: kmlOverlayId,
         writable: false
@@ -30,15 +26,32 @@ var KmlOverlay = function(map, kmlOverlayId, kmlOverlayOptions) {
         value: map,
         writable: false
     });
-    var ignores = ["map", "id", "type"];
+    Object.defineProperty(self, "hashCode", {
+        value: kmlOverlayOptions.hashCode,
+        writable: false
+    });
+    var ignores = ["map", "id", "hashCode", "type"];
     for (var key in kmlOverlayOptions) {
         if (ignores.indexOf(key) === -1) {
             self.set(key, kmlOverlayOptions[key]);
         }
     }
+
+
+    document.addEventListener(map.getId()  + "_" + kmlOverlayId, function(event) {
+console.log(event.placeMarkId);
+    });
 };
 
 utils.extend(KmlOverlay, BaseClass);
+
+KmlOverlay.prototype.getPluginName = function() {
+    return this.map.getId() + "-kmloverlay";
+};
+
+KmlOverlay.prototype.getHashCode = function() {
+    return this.hashCode;
+};
 
 KmlOverlay.prototype.getOverlays = function() {
     return this._overlays;
@@ -48,6 +61,16 @@ KmlOverlay.prototype.getMap = function() {
 };
 KmlOverlay.prototype.getId = function() {
     return this.id;
+};
+
+KmlOverlay.prototype.remove = function() {
+    var layerId = this.id,
+        self = this;
+
+    //this.trigger("_REMOVE");
+    setTimeout(function() {
+        self.trigger(self.id + "_remove");
+    }, 1000);
 };
 
 module.exports = KmlOverlay;

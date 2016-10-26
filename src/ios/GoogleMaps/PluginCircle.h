@@ -6,11 +6,13 @@
 //
 //
 
-#import "GoogleMaps.h"
+#import "CordovaGoogleMaps.h"
 #import "MyPlgunProtocol.h"
 
-@interface Circle : CDVPlugin<MyPlgunProtocol>
+@interface PluginCircle : CDVPlugin<MyPlgunProtocol>
+@property (nonatomic) NSMutableDictionary* objects;
 @property (nonatomic, strong) GoogleMapsViewController* mapCtrl;
+@property (nonatomic) NSOperationQueue *executeQueue;
 - (void)create:(CDVInvokedUrlCommand*)command;
 - (void)setCenter:(CDVInvokedUrlCommand*)command;
 - (void)setFillColor:(CDVInvokedUrlCommand*)command;
@@ -21,4 +23,3 @@
 - (void)setVisible:(CDVInvokedUrlCommand*)command;
 - (void)remove:(CDVInvokedUrlCommand*)command;
 @end
-

@@ -6,20 +6,21 @@
 //
 //
 
-#import "GoogleMaps.h"
+#import "CordovaGoogleMaps.h"
 #import "MyPlgunProtocol.h"
 #import "PluginUtil.h"
 #import "NSData+Base64.h"
 
-@interface Marker : CDVPlugin<MyPlgunProtocol>
+@interface PluginMarker : CDVPlugin<MyPlgunProtocol>
 
-@property (nonatomic, strong) NSCache* iconCache;
+@property (nonatomic, strong) NSCache* imgCache;
+@property (nonatomic) NSOperationQueue *executeQueue;
+@property (nonatomic) NSMutableDictionary* objects;
 
 @property (nonatomic, strong) GoogleMapsViewController* mapCtrl;
 - (void)create:(CDVInvokedUrlCommand*)command;
 - (void)showInfoWindow:(CDVInvokedUrlCommand*)command;
 - (void)hideInfoWindow:(CDVInvokedUrlCommand*)command;
-- (void)isInfoWindowShown:(CDVInvokedUrlCommand*)command;
 - (void)getPosition:(CDVInvokedUrlCommand*)command;
 - (void)setSnippet:(CDVInvokedUrlCommand*)command;
 - (void)setTitle:(CDVInvokedUrlCommand*)command;
@@ -38,7 +39,6 @@
 - (void)downloadImageWithURL:(NSURL *)url completionBlock:(void (^)(BOOL succeeded, UIImage *image))completionBlock;
 
 // Internal use
--(void)execJS: (NSString *)jsString;
 -(void)setMarkerAnimation_:(NSString *)animation marker:(GMSMarker *)marker pluginResult:(CDVPluginResult *)pluginResult callbackId:(NSString*)callbackId;
 -(void)setDropAnimation_:(GMSMarker *)marker pluginResult:(CDVPluginResult *)pluginResult callbackId:(NSString*)callbackId;
 -(void)setBounceAnimation_:(GMSMarker *)marker pluginResult:(CDVPluginResult *)pluginResult callbackId:(NSString*)callbackId;

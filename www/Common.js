@@ -1,3 +1,6 @@
+var BaseArrayClass = require('./BaseArrayClass');
+var utils = require("cordova/utils");
+
 //---------------------------
 // Convert HTML color to RGB
 //---------------------------
@@ -18,9 +21,24 @@ function isHTMLColorString(inputValue) {
     return inputValue in HTML_COLORS;
 }
 
+function deleteFromObject(object, type) {
+    if (object === null) return object;
+    if (typeof object !== "object") {
+      return object;
+    }
+    for(var index in Object.keys(object)) {
+        var key = Object.keys(object)[index];
+        if (typeof object[key] === 'object') {
+           object[key] = deleteFromObject(object[key], type);
+        } else if (typeof object[key] === type) {
+           delete object[key];
+        }
+    }
+    return object;
+}
 function HTMLColor2RGBA(colorValue, defaultOpacity) {
     defaultOpacity = !defaultOpacity ? 1.0 : defaultOpacity;
-    if(colorValue instanceof Array) {
+    if (colorValue instanceof Array) {
         return colorValue;
     }
     if (colorValue === "transparent" || !colorValue) {
@@ -118,7 +136,7 @@ function HLStoRGB(h, l, s) {
     h = h % 360;
 
     // In case of saturation = 0
-    if (s == 0) {
+    if (s === 0) {
         // RGB are the same as V
         l = Math.round(l * 255);
         return [l, l, l];
@@ -182,77 +200,116 @@ function isDom(element) {
         "getBoundingClientRect" in element;
 }
 
-function getPageRect() {
-    var doc = document.documentElement;
-
-    var pageWidth = window.innerWidth ||
-        document.documentElement.clientWidth ||
-        document.body.clientWidth;
-    var pageHeight = window.innerHeight ||
-        document.documentElement.clientHeight ||
-        document.body.clientHeight;
-    var pageLeft = (window.pageXOffset || doc.scrollLeft) - (doc.clientLeft || 0);
-    var pageTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0);
-
-    return {
-        'width': pageWidth,
-        'height': pageHeight,
-        'left': pageLeft,
-        'top': pageTop
-    };
-}
-
 function getDivRect(div) {
     if (!div) {
         return;
     }
-    // The number "8" indicates the default marginTop in pixel of the <body> tag.
-    // If you specify "document.body.style.margin=0;",
-    // div.getBoundingClientRect() returns incorrect top position.
-    // In order to fix it, the code needs to consider the body offset.
-
-    var bodyOffsets = document.body.getBoundingClientRect();
-    var pageRect = getPageRect();
     var rect = div.getBoundingClientRect();
-    var divRect = {
-        'left': rect.left + pageRect.left,
-        'top': rect.top + pageRect.top + (bodyOffsets.top - 8),
-        'width': rect.width,
-        'height': rect.height
+    return {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
     };
-
-    return rect;
 }
 
 function getAllChildren(root) {
-    var list = [];
-    var clickable;
-    var style, displayCSS, opacityCSS, visibilityCSS;
-    var search = function(node) {
-        while (node != null) {
-            if (node.nodeType == 1) {
-                style = window.getComputedStyle(node);
-                visibilityCSS = style.getPropertyValue('visibility');
-                displayCSS = style.getPropertyValue('display');
-                opacityCSS = style.getPropertyValue('opacity');
-                if (displayCSS !== "none" && opacityCSS > 0 && visibilityCSS != "hidden") {
-                    clickable = node.getAttribute("data-clickable");
-                    if (clickable &&
-                        clickable.toLowerCase() === "false" &&
-                        node.hasChildNodes()) {
-                        Array.prototype.push.apply(list, getAllChildren(node));
-                    } else {
-                        list.push(node);
-                    }
-                }
-            }
-            node = node.nextSibling;
-        }
-    };
-    for (var i = 0; i < root.childNodes.length; i++) {
-        search(root.childNodes[i]);
+    if (!root) {
+      return [];
     }
+
+    var ignoreTags = ["pre", "textarea", "p", "form", "input", "table", "caption"];
+
+    var list;
+    if (window.document.querySelectorAll) {
+        // Android: v4.3 and over
+        // iOS safari: v9.2 and over
+        var childNodes = root.querySelectorAll("*");
+        var allClickableElements = Array.prototype.slice.call(childNodes);
+        list = allClickableElements.filter(function(node) {
+            var tagName = node.tagName.toLowerCase();
+            return node !== root && _shouldWatchByNative(node) && ignoreTags.indexOf(tagName) == -1;
+        });
+    } else {
+        var node;
+        var clickableElements = root.getElementsByTagName("*");
+        for (var i = 0; i < clickableElements.length; i++) {
+            node = clickableElements[i];
+            if (_shouldWatchByNative(node) && ignoreTags.indexOf(tagName) == -1) {
+                list.push(node);
+            }
+        }
+    }
+
     return list;
+}
+function _shouldWatchByNative(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return;
+  }
+  var visibilityCSS = getStyle(node, 'visibility');
+  var displayCSS = getStyle(node, 'display');
+  var opacityCSS = getStyle(node, 'opacity');
+  opacityCSS = /^[\d.]+$/.test(opacityCSS + "") ? opacityCSS : 1;
+  var heightCSS = getStyle(node, 'height');
+  var widthCSS = getStyle(node, 'width');
+  var clickableSize = (heightCSS != "0px" && widthCSS != "0px" && node.clientHeight > 0 && node.clientWidth > 0);
+  return displayCSS !== "none" && opacityCSS > 0 && visibilityCSS != "hidden" && clickableSize;
+}
+
+
+// Get z-index order
+// http://stackoverflow.com/a/24136505
+function getZIndex(dom) {
+    if (dom.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+    var z = window.document.defaultView.getComputedStyle(dom).getPropertyValue('z-index');
+    if (isNaN(z)) {
+        return getZIndex(dom.parentNode);
+    }
+    return z;
+}
+
+function getDomDepth(dom, idx) {
+    if (dom.nodeType !== Node.ELEMENT_NODE) {
+      return 0;
+    }
+    var orgDom = dom;
+    var depth = 0;
+    var zIndex = getZIndex(dom);
+    while (dom.parentNode !== null && dom.parentNode != document) {
+        dom = dom.parentNode;
+        depth++;
+    }
+    //if (zIndex > -1) {
+    //  depth = depth * 1000 + zIndex;
+    //} else {
+    //  depth = zIndex;
+    //}
+
+    //orgDom.setAttribute("_depth", depth + "_" + zIndex + "_" + idx);
+    //orgDom.setAttribute("_result", depth * 1000 + parseInt(zIndex, 10) + idx);
+    return depth * 1000 + parseInt(zIndex, 10) + idx;
+}
+
+// Get CSS value of an element
+// http://stackoverflow.com/a/1388022
+function getStyle(element, styleProperty)
+{
+    if (window.getComputedStyle) {
+        return document.defaultView.getComputedStyle(element,null).getPropertyValue(styleProperty);
+    } else if (element.currentStyle) {
+      return element.currentStyle[styleProperty];
+    }
+    return;
+}
+
+function getDomInfo(dom) {
+    return {
+        size: getDivRect(dom),
+        depth: depth = getDomDepth(dom)
+    };
 }
 
 var HTML_COLORS = {
@@ -406,14 +463,73 @@ var HTML_COLORS = {
     "yellowgreen": "#9acd32"
 };
 
+function defaultTrueOption(value) {
+    return value === undefined ? true : value === true;
+}
+
+function createMvcArray(array) {
+    var mvcArray;
+    if (array && typeof array.getArray === "function") {
+        mvcArray = new BaseArrayClass(array.getArray());
+        array.on('set_at', function(index) {
+            var value = array.getAt(index);
+            value = "position" in value ? value.getPosition() : value;
+            mvcArray.setAt(index, value);
+        });
+        array.on('insert_at', function(index) {
+            var value = array.getAt(index);
+            value = "position" in value ? value.getPosition() : value;
+            mvcArray.insertAt(index, value);
+        });
+        array.on('remove_at', function(index) {
+            mvcArray.removeAt(index);
+        });
+
+    } else {
+        mvcArray = new BaseArrayClass(!!array ? array.slice(0) : undefined);
+    }
+    return mvcArray;
+}
+
+function getLatLng(target) {
+  return "getPosition" in target ? target.getPosition() : {
+    "lat": target.lat,
+    "lng": target.lng
+  };
+}
+function convertToPositionArray(array) {
+    array = array || [];
+
+    if (!utils.isArray(array)) {
+        if (array &&
+            array.type === "LatLngBounds") {
+            array = [array.southwest, array.northeast];
+        } else if (array && typeof array.getArray === "function") {
+            array = array.getArray();
+        } else {
+            array = [array];
+        }
+    }
+
+    array = array.map(getLatLng);
+
+    return array;
+}
 
 module.exports = {
-  getDivRect: getDivRect,
-  getPageRect: getPageRect,
-  getAllChildren: getAllChildren,
-  isDom: isDom,
-  parseBoolean: parseBoolean,
-  HLStoRGB: HLStoRGB,
-  HTMLColor2RGBA: HTMLColor2RGBA,
-  isHTMLColorString: isHTMLColorString
+    getDomDepth: getDomDepth,
+    deleteFromObject: deleteFromObject,
+    getDivRect: getDivRect,
+    getDomInfo: getDomInfo,
+    getAllChildren: getAllChildren,
+    isDom: isDom,
+    parseBoolean: parseBoolean,
+    HLStoRGB: HLStoRGB,
+    HTMLColor2RGBA: HTMLColor2RGBA,
+    isHTMLColorString: isHTMLColorString,
+    defaultTrueOption: defaultTrueOption,
+    createMvcArray: createMvcArray,
+    getStyle: getStyle,
+    convertToPositionArray: convertToPositionArray,
+    getLatLng: getLatLng
 };

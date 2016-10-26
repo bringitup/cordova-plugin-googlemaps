@@ -6,15 +6,13 @@
 //
 //
 
-#import "GoogleMaps.h"
+#import "CordovaGoogleMaps.h"
 #import "PluginUtil.h"
 #import <CoreLocation/CoreLocation.h>
 
-@interface Geocoder : CDVPlugin
-
-@property (nonatomic, strong) CLGeocoder *geocoder;
-@property (nonatomic, strong) GMSGeocoder *reverseGeocoder;
+@interface PluginGeocoder : CDVPlugin
 @property (nonatomic, strong) NSDictionary *codeForCountryDictionary;
+@property (nonatomic, strong) NSOperationQueue *executeQueue;
 - (void)geocode:(CDVInvokedUrlCommand*)command;
 - (NSArray *)geocoder_callback:(NSArray *)placemarks error:(NSError *)error;
 
