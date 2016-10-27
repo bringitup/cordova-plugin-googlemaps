@@ -140,6 +140,7 @@
         </config-file>
 
         <framework src="com.google.android.gms:play-services-maps:9.6.1" />
+        <framework src="com.google.android.gms:play-services-gcm:9.6.1" />
         <framework src="com.google.android.gms:play-services-location:9.6.1" />
 
         <!-- plugin src files -->
@@ -176,6 +177,10 @@
                        android:value="@integer/google_play_services_version" />
         </config-file>       
 
+        <edit-config file="AndroidManifest.xml" target="/manifest/application" mode="merge">		
+            <application android:largeHeap="true" />		
+        </edit-config>
+        
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <uses-permission android:name="android.permission.INTERNET"/>
             <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
