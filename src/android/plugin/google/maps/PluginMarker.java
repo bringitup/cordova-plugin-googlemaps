@@ -162,7 +162,9 @@ public class PluginMarker extends MyPlugin {
           if (opts.has("visible")) {
             try {
               marker.setVisible(opts.getBoolean("visible"));
-            } catch (JSONException e) {}
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
           } else {
             marker.setVisible(true);
           }
